@@ -1,0 +1,20 @@
+import { mkstemp } from 'fs';
+
+const methods = {
+	generateKeyPair: {
+		call: function() {
+			let privfd = mkstemp();
+			let pubfd = mkstemp();
+			system(`gnb_crypto -c -p /dev/stdout -k /dev/stderr >&${privfd.fileno()} 2>&${pubfd.fileno()}`);
+			privfd.seek(0);
+			pubfd.seek(0);
+			const priv = privfd.read(128) ?? '';
+			const pub = pubfd.read(64) ?? '';
+			privfd.close();
+			pubfd.close();
+			return { keys: { priv, pub } };
+		}
+	}
+};
+
+return { 'luci.gnb': methods };

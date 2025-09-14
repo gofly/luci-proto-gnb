@@ -1,0 +1,12 @@
+{
+  "luci-proto-gnb": {
+    "description": "Grant access to LuCI GNB procedures",
+    "read": {
+      "ubus": {
+        "luci.gnb": [
+          "generateKeyPair"
+        ]
+      }
+    }
+  }
+}
