@@ -38,21 +38,25 @@ var stubValidator = {
     return _('Crypto setting is missing or invalid');
   },
   NodeID: function (section_id, value) {
-    if (stubValidator.apply('range', value, [1000, 9999])) return true;
+    if (stubValidator.apply('range', value, [0, 9999])) return true;
     return _('Node ID setting is missing or invalid');
   },
   PrivateKey: function (section_id, value) {
     if (stubValidator.validateHex(128, value)) return true;
     return _('Private Key setting is missing or invalid');
   },
-  PublicKey: function (section_id, value) {
-    if (stubValidator.validateHex(64, value)) return true;
-    return _('Public Key setting is missing or invalid');
+  PublicKey: function (optional) {
+    return function (section_id, value) {
+      if ((optional && !value) || stubValidator.validateHex(64, value)) return true;
+      return _('Public Key setting is missing or invalid');
+    }
   },
   IPAddr: function (section_id, value) {
-    if (value == null || value === '') return _('IPv4 Address setting is missing or invalid');
-    if (stubValidator.apply('cidr4', value)) return true;
-    return _('IPv4 Address setting is missing or invalid');
+    var arr = Array.isArray(value) ? value : String(value).split(/[, ]+/).filter(Boolean);
+    for (var i = 0; i < arr.length; i++) {
+      if (!stubValidator.apply('cidr4', arr[i])) return _('IPAddr setting is invalid');
+    }
+    return true;
   },
   Passcode: function (section_id, value) {
     if (stubValidator.validateHex(8, value)) return true;
@@ -252,22 +256,21 @@ return network.registerProtocol('gnb', {
       ]);
     };
 
-    o = s.taboption('general', form.Value, 'node_id', _('Node ID'), _('Required. 4 digits between 1000 to 9999'));
+    o = s.taboption('general', form.Value, 'node_id', _('Node ID'), _('Required. Numbers from 0 to 9999'));
     o.placeholder = '1000';
     o.validate = stubValidator.NodeID;
 
-    o = s.taboption('general', form.Value, 'private_key', _('Private Key'), _('Required. Hex-encoded private key for this interface.'));
+    o = s.taboption('general', form.TextValue, 'private_key', _('Private Key'), _('Required. Hex-encoded private key for this interface.'));
     o.validate = stubValidator.PrivateKey;
-    o.password = true;
-    o.rmempty = false;
+    o.wrap = true;
 
-    o = s.taboption('general', form.Value, 'public_key', _('Public Key'), _('Hex-encoded public key of this interface for sharing.'));
-    o.validate = stubValidator.PublicKey;
-    o.rmempty = false;
+    o = s.taboption('general', form.TextValue, 'public_key', _('Public Key'), _('Required. Hex-encoded public key of this interface for sharing.'));
+    o.validate = stubValidator.PublicKey(false);
+    o.wrap = true;
 
     s.taboption('general', cbiKeyPairGenerate, '_gen_server_keypair', ' ');
 
-    o = s.taboption('general', form.Value, 'ipaddr', _('IPv4 address'), _('Such as 192.168.100.1/24'));
+    o = s.taboption('general', form.DynamicList, 'ipaddr', _('IPv4 address'), _('Such as 192.168.100.1/24'));
     o.validate = stubValidator.IPAddr;
 
     o = s.taboption('general', form.Value, 'passcode', _('Passcode'), _('Hex-encoded 8 characters preshared key'));
@@ -394,7 +397,7 @@ return network.registerProtocol('gnb', {
       if (mode === 'full') {
         if (stubValidator.NodeID('', config.interface_nodeid) !== true) return _('Node ID setting is missing or invalid');
         if (stubValidator.PrivateKey('', config.interface_privatekey) !== true) return _('PrivateKey setting is missing or invalid');
-        if (stubValidator.PublicKey('', config.interface_publickey) !== true) return _('PublicKey setting is missing or invalid');
+        if (stubValidator.PublicKey(false)('', config.interface_publickey) !== true) return _('PublicKey setting is missing or invalid');
         if (stubValidator.IPAddr('', config.interface_ipaddr) !== true) return _('IP Address setting is missing or invalid');
         if (stubValidator.Passcode('', config.interface_passcode) !== true) return _('Passcode setting is missing or invalid');
         if (stubValidator.Crypto('', config.interface_crypto) !== true) return _('Crypto setting is missing or invalid');
@@ -412,7 +415,7 @@ return network.registerProtocol('gnb', {
       for (i = 0; i < peers.length; i++) {
         var pconf = peers[i];
         if (stubValidator.NodeID('', pconf.peer_nodeid) !== true) return _('Node ID is invalid');
-        if (stubValidator.PublicKey('', pconf.peer_publickey) !== true) return _('PublicKey setting is missing or invalid');
+        if (stubValidator.PublicKey(true)('', pconf.peer_publickey) !== true) return _('PublicKey setting is invalid');
 
         if (!pconf.peer_nodetype) pconf.peer_nodetype = ['n'];
         else {
@@ -420,7 +423,7 @@ return network.registerProtocol('gnb', {
           if (stubValidator.NodeType('', pconf.peer_nodetype) !== true) return _('NodeType setting is missing or invalid');
         }
 
-        if (stubValidator.IPAddr('', pconf.peer_ipaddr) !== true) return _('IPAddr setting is missing or invalid');
+        if (stubValidator.IPAddr('', pconf.peer_ipaddr) !== true) return _('IPAddr setting is invalid');
 
         if (!pconf.peer_subnet) pconf.peer_subnet = [];
         else {
@@ -592,7 +595,7 @@ return network.registerProtocol('gnb', {
     o.editable = true;
     o.default = o.disabled;
 
-    o = ss.option(form.Value, 'node_id', _('Node ID'), _('Required. 4 digits'));
+    o = ss.option(form.Value, 'node_id', _('Node ID'), _('Required. Numbers from 0 to 9999'));
     o.placeholder = '1000';
     o.validate = stubValidator.NodeID;
     o.textvalue = function (section_id) {
@@ -639,15 +642,15 @@ return network.registerProtocol('gnb', {
     o.validate = stubValidator.NodeType;
     o.modalonly = true;
 
-    o = ss.option(form.Value, 'ipaddr', _('IPv4 address'));
+    o = ss.option(form.DynamicList, 'ipaddr', _('IPv4 address'), _('Optional. IPv4 address.'));
     o.validate = stubValidator.IPAddr;
     o.placeholder = '192.168.100.1/24';
 
-    o = ss.option(form.Value, 'public_key', _('Public Key'), _('Required. Public key of the GNB peer.'));
-    o.validate = stubValidator.PublicKey;
+    o = ss.option(form.TextValue, 'public_key', _('Public Key'), _('Public key of the GNB peer.'));
+    o.validate = stubValidator.PublicKey(true);
     o.modalonly = true;
 
-    o = ss.option(form.DynamicList, 'subnet', _('Subnet'), _("Required. Subnet that this peer is allowed to use inside the tunnel, like 192.168.100.2/255.255.255.0"));
+    o = ss.option(form.DynamicList, 'subnet', _('Subnet'), _("Subnet that this peer is allowed to use inside the tunnel, like 192.168.100.2/255.255.255.0"));
     o.validate = stubValidator.Subnet;
     o.textvalue = function (section_id) {
       var subnets = L.toArray(this.cfgvalue(section_id)),
@@ -671,7 +674,7 @@ return network.registerProtocol('gnb', {
       return E('span', { 'style': 'display:inline-flex;flex-wrap:wrap;gap:.125em' }, list);
     };
 
-    o = ss.option(form.Flag, 'route_subnet', _('Route Subnet'), _('Optional. Create routes for Subnet for this peer.'));
+    o = ss.option(form.Flag, 'route_subnet', _('Route Subnet'), _('Create routes for Subnet for this peer.'));
     o.validate = stubValidator.RouteSubnet;
     o.default = o.enabled;
     o.editable = true;
