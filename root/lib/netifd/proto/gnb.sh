@@ -22,6 +22,18 @@ proto_gnb_append() {
 	append "$3" "$1" "~"
 }
 
+proto_gnb_peer_public_key() {
+	local section="$1" this_node_id="$2" keydir="$3"
+	local disabled node_id public_key
+
+	config_get disabled "$section" disabled
+	config_get node_id "$section" node_id
+	config_get public_key "$section" public_key
+
+	[ "$disabled" != '1' ] && [ "$this_node_id" != "$node_id" ] && \
+		[ -n "$public_key" ] && echo "$node_id~$public_key"
+}
+
 proto_gnb_peer_address() {
 	local section="$1" this_node_id="$2"
 	local disabled node_id nodetype address
@@ -59,27 +71,15 @@ proto_gnb_peer_route() {
 	}
 }
 
-proto_gnb_peer_public_key() {
-	local section="$1" this_node_id="$2" keydir="$3"
-	local disabled node_id public_key
-
-	config_get disabled "$section" disabled
-	config_get node_id "$section" node_id
-	config_get public_key "$section" public_key
-
-	[ "$disabled" != '1' ] && [ "$this_node_id" != "$node_id" ] && [ -n "$public_key" ] && echo "$node_id~$public_key"
-}
-
 proto_gnb_peer_script_route_subnet() {
 	local section="$1" this_node_id="$2"
-	local disabled node_id route_subnet subnet
+	local disabled node_id subnet
 
 	config_get disabled "$section" disabled
 	config_get node_id "$section" node_id
-	config_get route_subnet "$section" route_subnet
 	config_get subnet "$section" subnet
 
-	[ "$disabled" != '1' ] && [ "$route_subnet" != '0' ] && [ "$this_node_id" != "$node_id" ] && {
+	[ "$disabled" != '1' ] && [ -n "$subnet" ]  && [ "$this_node_id" != "$node_id" ] && {
 		for cidr in $subnet; do
 				echo "proto_add_ipv4_route ${cidr%/*} $(prefix2netmask ${cidr#*/})"
 		done
@@ -118,6 +118,7 @@ proto_gnb_setup() {
 	mkdir -p $confdir/security $confdir/ed25519 $confdir/scripts \
 		/var/run/gnb /tmp/log/gnb/$network
 
+	# node.conf
 	{
 		echo "nodeid $node_id"
 		[ -n "$listens" ] && echo $listens | sed 's/~/\n/g' | while read line; do echo listen $line; done
@@ -131,20 +132,27 @@ proto_gnb_setup() {
 		echo "log-file-path /tmp/log/gnb/$network"
 	} > $confdir/node.conf
 
+	# private and public key
 	echo $private_key > $confdir/security/$node_id.private
 	echo $public_key > $confdir/security/$node_id.public
 
 	config_load network
+
+	# address.conf
 	config_foreach proto_gnb_peer_address "gnb_$network" $node_id > $confdir/address.conf
+
+	# route.conf
 	{
 		echo $ipaddrs | sed 's/~/\n/g' | while read line; do echo "$node_id|${line%/*}|$(prefix2netmask ${line#*/})"; done
 		config_foreach proto_gnb_peer_route "gnb_$network" $node_id
 	}> $confdir/route.conf
+
+	# peer.public
 	config_foreach proto_gnb_peer_public_key "gnb_$network" $node_id | while read line; do
 		echo ${line#*~} > $confdir/ed25519/${line%~*}.public
 	done
 
-	echo $ipaddrs > /tmp/debug.txt
+	# scripts/if_up_linux.sh
 	{
 		cat << EOF
 #!/bin/sh

@@ -98,12 +98,6 @@ var stubValidator = {
     }
     return true;
   },
-  RouteSubnet: function (section_id, value) {
-    if (value == null) return true;
-    var v = String(value);
-    if (v === '0' || v === '1') return true;
-    return _('RouteSubnet setting is missing or invalid');
-  },
   Address: function (section_id, value) {
     if (!value) return true;
     var arr = Array.isArray(value) ? value : String(value).split(/[, ]+/).filter(Boolean);
@@ -203,7 +197,7 @@ return network.registerProtocol('gnb', {
       return ss.handleConfigImport('full');
     };
 
-    o = s.taboption('general', form.DummyValue, '_export', _('Export configuration'), _('Exports settings to a GNB configuration file'));
+    o = s.taboption('general', form.DummyValue, '_export', _('Export configuration'), _('Exports settings to a GNB configuration file.'));
     o.exportConfig = function (section_id, ev) {
       var nodeid = s.formvalue(s.section, 'node_id') || '',
         priv = s.formvalue(s.section, 'private_key') || '',
@@ -237,7 +231,6 @@ return network.registerProtocol('gnb', {
         confContent.push('NodeType=' + (peer.node_type || ''));
         if (peer.subnet != null) confContent.push('Subnet=' + peer.subnet);
         if (peer.address != null) confContent.push('Address=' + peer.address);
-        if (peer.route_subnet != null) confContent.push('RouteSubnet=' + peer.route_subnet);
         if (peer.disabled != null) confContent.push('Disabled=' + peer.disabled);
         confContent.push('');
       });
@@ -256,7 +249,7 @@ return network.registerProtocol('gnb', {
       ]);
     };
 
-    o = s.taboption('general', form.Value, 'node_id', _('Node ID'), _('Required. Numbers from 0 to 9999'));
+    o = s.taboption('general', form.Value, 'node_id', _('Node ID'), _('Required. Numbers from 0 to 9999.'));
     o.placeholder = '1000';
     o.validate = stubValidator.NodeID;
 
@@ -270,10 +263,10 @@ return network.registerProtocol('gnb', {
 
     s.taboption('general', cbiKeyPairGenerate, '_gen_server_keypair', ' ');
 
-    o = s.taboption('general', form.DynamicList, 'ipaddr', _('IPv4 address'), _('Such as 192.168.100.1/24'));
+    o = s.taboption('general', form.DynamicList, 'ipaddr', _('IPv4 address'), _('Optional. In CIDR4 format, for example, 192.168.100.1/24..'));
     o.validate = stubValidator.IPAddr;
 
-    o = s.taboption('general', form.Value, 'passcode', _('Passcode'), _('Hex-encoded 8 characters preshared key'));
+    o = s.taboption('general', form.Value, 'passcode', _('Passcode'), _('Required. 8 hex characters'));
     o.validate = stubValidator.Passcode;
     o.password = true;
 
@@ -285,7 +278,7 @@ return network.registerProtocol('gnb', {
         'click': ui.createHandlerFn(this, function (section_id, ev) {
           var psk = this.section.getUIElement(section_id, 'passcode');
           if (!psk) {
-            ui.addNotification(null, E('p', [_('UI element missing: passcode')]), 'error');
+            ui.addNotification(null, E('p', [_('UI element missing: passcode.')]), 'error');
             return;
           }
           if (psk.getValue()) {
@@ -298,7 +291,7 @@ return network.registerProtocol('gnb', {
           psk.setValue(hex);
           this.map.save(null, true);
         }, section_id),
-      }, [_('Generate preshared key')]);
+      }, [_('Generate Passcode')]);
     };
 
     o = s.taboption('general', form.ListValue, 'crypto', _('Crypto'));
@@ -312,7 +305,7 @@ return network.registerProtocol('gnb', {
     o.validate = stubValidator.MultiSocket;
     o.default = o.disabled;
 
-    o = s.taboption('general', form.DynamicList, 'listen', _('Listen'));
+    o = s.taboption('general', form.DynamicList, 'listen', _('Listening port'), _('Optional. The default listening port is 9001.'));
     o.validate = stubValidator.Listen;
     o.placeholder = '9001';
 
@@ -431,9 +424,6 @@ return network.registerProtocol('gnb', {
           if (stubValidator.Subnet('', pconf.peer_subnet) !== true) return _('Subnet setting is invalid');
         }
 
-        if (!pconf.peer_routesubnet) pconf.peer_routesubnet = '1';
-        else if (stubValidator.RouteSubnet('', pconf.peer_routesubnet) !== true) return _('RouteSubnet setting is missing or invalid');
-
         if (!pconf.peer_address) pconf.peer_address = [];
         else {
           pconf.peer_address = String(pconf.peer_address).split(/[, ]+/).filter(Boolean);
@@ -499,7 +489,6 @@ return network.registerProtocol('gnb', {
           public_key: pconf.peer_publickey,
           ipaddr: pconf.peer_ipaddr,
           subnet: pconf.peer_subnet,
-          route_subnet: pconf.peer_routesubnet,
           address: pconf.peer_address,
         };
         Object.keys(updateObjs).forEach(function (key) {
@@ -595,7 +584,7 @@ return network.registerProtocol('gnb', {
     o.editable = true;
     o.default = o.disabled;
 
-    o = ss.option(form.Value, 'node_id', _('Node ID'), _('Required. Numbers from 0 to 9999'));
+    o = ss.option(form.Value, 'node_id', _('Node ID'), _('Required. Numbers from 0 to 9999.'));
     o.placeholder = '1000';
     o.validate = stubValidator.NodeID;
     o.textvalue = function (section_id) {
@@ -631,7 +620,7 @@ return network.registerProtocol('gnb', {
       return E([], desc);
     };
 
-    o = ss.option(form.MultiValue, 'node_type', _('Node Type'), _('Node Type.'));
+    o = ss.option(form.MultiValue, 'node_type', _('Node Type'), _('Required. Node Type.'));
     o.value('n', _('Normal'));
     o.value('i', _('Index'));
     o.value('f', _('Forward'));
@@ -642,15 +631,14 @@ return network.registerProtocol('gnb', {
     o.validate = stubValidator.NodeType;
     o.modalonly = true;
 
-    o = ss.option(form.DynamicList, 'ipaddr', _('IPv4 address'), _('Optional. IPv4 address.'));
+    o = ss.option(form.DynamicList, 'ipaddr', _('IPv4 address'), _('Optional. IPv4 address of peer.'));
     o.validate = stubValidator.IPAddr;
-    o.placeholder = '192.168.100.1/24';
 
-    o = ss.option(form.TextValue, 'public_key', _('Public Key'), _('Public key of the GNB peer.'));
+    o = ss.option(form.TextValue, 'public_key', _('Public Key'), _('Optional. Public key of the GNB peer.'));
     o.validate = stubValidator.PublicKey(true);
     o.modalonly = true;
 
-    o = ss.option(form.DynamicList, 'subnet', _('Subnet'), _("Subnet that this peer is allowed to use inside the tunnel, like 192.168.100.2/255.255.255.0"));
+    o = ss.option(form.DynamicList, 'subnet', _('Subnet'), _("Optional. Subnet that this peer is allowed to use inside the tunnel, like 192.168.99.0/255.255.255.0"));
     o.validate = stubValidator.Subnet;
     o.textvalue = function (section_id) {
       var subnets = L.toArray(this.cfgvalue(section_id)),
@@ -674,12 +662,7 @@ return network.registerProtocol('gnb', {
       return E('span', { 'style': 'display:inline-flex;flex-wrap:wrap;gap:.125em' }, list);
     };
 
-    o = ss.option(form.Flag, 'route_subnet', _('Route Subnet'), _('Create routes for Subnet for this peer.'));
-    o.validate = stubValidator.RouteSubnet;
-    o.default = o.enabled;
-    o.editable = true;
-
-    o = ss.option(form.DynamicList, 'address', _('Address'), _('Optional. Address of peer.'));
+    o = ss.option(form.DynamicList, 'address', _('Address'), _('Optional. Address for connecting to this peer.'));
     o.validate = stubValidator.Address;
     o.textvalue = function (section_id) {
       var addrs = L.toArray(this.cfgvalue(section_id)),
