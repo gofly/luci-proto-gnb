@@ -7,7 +7,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-proto-gnb
-PKG_VERSION:=1.0.0
+PKG_VERSION:=1.0.1
 PKG_RELEASE:=1
 PKG_MAINTAINER:=Lixin Zheng<lixin.zheng@gmail.com>
 PKG_LICENSE:=GPLv3
@@ -15,17 +15,13 @@ PKG_LICENSE_FILES:=LICENSE
 
 include $(INCLUDE_DIR)/package.mk
 
-LUCI_TITLE:=
-LUCI_DEPENDS:=+gnb +ucode
-LUCI_PKGARCH:=all
-
 define Package/luci-proto-gnb
 	SECTION:=LuCI
 	CATEGORY:=Protocols
-	DEPENDS:=+gnb
 	TITLE:=GNB VPN protocol support for LuCI
 	MAINTAINER:=Lixin Zheng<lixin.zheng@gmail.com>
 	PKGARCH:=all
+	DEPENDS:=+gnb
 endef
 
 define Package/luci-proto-gnb/description

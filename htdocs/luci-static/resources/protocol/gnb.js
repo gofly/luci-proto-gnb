@@ -202,10 +202,13 @@ return network.registerProtocol('gnb', {
       var nodeid = s.formvalue(s.section, 'node_id') || '',
         priv = s.formvalue(s.section, 'private_key') || '',
         pub = s.formvalue(s.section, 'public_key') || '',
-        ipaddr = s.formvalue(s.section, 'ipaddr') || '',
+        ipaddr = s.formvalue(s.section, 'ipaddr') || [],
+        listen = s.formvalue(s.section, 'listen') || [],
         passcode = s.formvalue(s.section, 'passcode') || '',
         crypto = s.formvalue(s.section, 'crypto') || '',
-        multisocket = s.formvalue(s.section, 'multisocket');
+        multisocket = s.formvalue(s.section, 'multisocket'),
+        fwmark = s.formvalue(s.section, 'fwmark'),
+        exporter_port = s.formvalue(s.section, 'exporter_port');
       multisocket = multisocket == null ? '0' : String(multisocket);
 
       var confContent = [];
@@ -213,14 +216,15 @@ return network.registerProtocol('gnb', {
         'NodeID=' + nodeid,
         'PrivateKey=' + priv,
         'PublicKey=' + pub,
-        'IPAddr=' + ipaddr,
         'PassCode=' + passcode,
         'Crypto=' + crypto,
         'MultiSocket=' + multisocket);
 
-      var listen = s.formvalue(s.section, 'listen');
-      if (listen.length > 0)
-        confContent.push('Listen=' + (Array.isArray(listen) ? listen.join(',') : listen));
+      if (ipaddr.length > 0) confContent.push('IPAddr=' + (Array.isArray(ipaddr) ? ipaddr.join(',') : ipaddr));
+      if (listen.length > 0) confContent.push('Listen=' + (Array.isArray(listen) ? listen.join(',') : listen));
+      if (fwmark) confContent.push('FwMark=' + fwmark);
+      if (exporter_port) confContent.push('ExporterPort=' + exporter_port);
+
       confContent.push('');
 
       uci.sections('network', 'gnb_' + s.section, function (peer) {
@@ -313,6 +317,13 @@ return network.registerProtocol('gnb', {
     o.datatype = 'range(68, 9200)';
     o.placeholder = dev ? (dev.getMTU()) : '';
 
+    o = s.taboption('advanced', form.Value, 'fwmark', _('Firewall Mark'), _('Optional. Outgoing traffic will be marked for the firewall and routing, default is 255.'));
+    o.datatype = 'range(0, 4294967295)';
+    o.placeholder = '255';
+
+    o = s.taboption('advanced', form.Value, 'exporter_port', _('Exporter Port'), _('Optional. The port of exporter listening to.'));
+    o.datatype = 'port';
+
     try {
       s.tab('peers', _('Peers'), _('GNB peers'));
     }
@@ -403,6 +414,8 @@ return network.registerProtocol('gnb', {
         } else {
           config.interface_listen = [];
         }
+        if (config.interface_fwmark && !stubValidator.apply('range', config.interface_fwmark, [0, 4294967295])) return _('Firewall Mark setting is invalid');
+        if (config.interface_exporterport && !stubValidator.apply('port', config.interface_exporterport)) return _('Exporter Port setting is invalid');
       }
 
       for (i = 0; i < peers.length; i++) {
@@ -463,10 +476,12 @@ return network.registerProtocol('gnb', {
           private_key: config.interface_privatekey,
           public_key: config.interface_publickey,
           ipaddr: config.interface_ipaddr,
+          listen: config.interface_listen,
           passcode: config.interface_passcode,
           crypto: config.interface_crypto,
           multisocket: config.interface_multisocket,
-          listen: config.interface_listen,
+          fwmark: config.interface_fwmark,
+          exporter_port: config.interface_exporterport,
         };
         Object.keys(updateObjs).forEach(function (key) {
           if (typeof updateObjs[key] !== 'undefined')
