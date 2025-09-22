@@ -313,6 +313,9 @@ return network.registerProtocol('gnb', {
     o.datatype = 'range(68, 9200)';
     o.placeholder = dev ? (dev.getMTU()) : '';
 
+    o = s.taboption('advanced', form.Value, 'fwmark', _('Firewall mark'));
+    o.datatype = 'range(0, 4294967295)';
+
     try {
       s.tab('peers', _('Peers'), _('GNB peers'));
     }

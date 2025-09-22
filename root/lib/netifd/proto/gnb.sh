@@ -95,6 +95,7 @@ proto_gnb_init_config() {
 	proto_config_add_string crypto
 	proto_config_add_boolean 'multisocket'
 	proto_config_add_int 'mtu'
+	proto_config_add_int 'fwmark'
 	proto_config_add_array 'listen'
 
 	no_device=1
@@ -105,9 +106,9 @@ proto_gnb_setup() {
 	local network="$1"
 
 	local node_id private_key public_key ipaddr ipaddrs passcode crypto \
-		multisocket mtu listen listens
+		multisocket mtu fwmark listen listens
 	json_get_vars node_id private_key public_key ipaddr \
-		passcode crypto multisocket mtu
+		passcode crypto multisocket mtu fwmark
 	json_for_each_item proto_gnb_append listen listens
 	json_for_each_item proto_gnb_append ipaddr ipaddrs
 
@@ -126,6 +127,7 @@ proto_gnb_setup() {
 		[ -n "$crypto" ] && echo "crypto $crypto"
 		[ "$multisocket" = 1 ] && echo "multi-socket on" || echo "multi-socket off"
 		[ -n "$mtu" ] && echo "mtu $mtu"
+		[ -n "$fwmark" ] && echo "fwmark $fwmark"
 		echo "ctl-block /var/run/gnb/$network.map"
 		echo "node-cache-file /var/run/gnb/$network.nodes"
 		echo "pid-file /var/run/gnb/$network.pid"
